@@ -11,7 +11,8 @@ import WebKit
 class ViewController: UIViewController, WKNavigationDelegate {
     var webView: WKWebView!
     var progressView: UIProgressView!
-    var websites = ["apple.com", "google.com"]
+    var websites = ["apple.com", "google.com", "vk.com", "dzen.ru"]
+    var selectedWebPage: String?
     
     // created webview before viewDidLoad()
     override func loadView() {
@@ -36,15 +37,20 @@ class ViewController: UIViewController, WKNavigationDelegate {
         progressView.sizeToFit()
         let progressButton = UIBarButtonItem(customView: progressView)
         
+        // added two new buttons
+        let goBack = UIBarButtonItem(barButtonSystemItem: .undo, target: webView, action: #selector(webView.goBack))
+        let goForward = UIBarButtonItem(barButtonSystemItem: .fastForward, target: webView, action: #selector(webView.goForward))
+        
         // added toolBar
-        toolbarItems = [progressButton, spacer, refresh]
+        toolbarItems = [goBack, progressButton,goForward, spacer, refresh]
         navigationController?.isToolbarHidden = false
         
         // aded observer
         webView.addObserver(self, forKeyPath: #keyPath(WKWebView.estimatedProgress),options: .new, context: nil)
 
         // loading main web page
-        let url = URL(string: "https://" + websites[1])!
+        guard let host = selectedWebPage else { return }
+        guard let url = URL(string: "https://" + host) else { return }
         webView.load(URLRequest(url: url))
         // allow gestures
         webView.allowsBackForwardNavigationGestures = true
@@ -72,7 +78,7 @@ class ViewController: UIViewController, WKNavigationDelegate {
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         title = webView.title
     }
-    // added observer for checking downloading web page progress
+    // added Key-Value observer for checking downloading web page progress
     override func observeValue(forKeyPath keyPath: String?, of object: Any?, change: [NSKeyValueChangeKey : Any]?, context: UnsafeMutableRawPointer?) {
         if keyPath == "estimatedProgress" {
             progressView.progress = Float(webView.estimatedProgress)
@@ -81,18 +87,28 @@ class ViewController: UIViewController, WKNavigationDelegate {
     // added method for allowing only right websites
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
         let url = navigationAction.request.url
+        var wasAllow = false
         
         if let host = url?.host {
+            print(host)
             for website in websites {
                 if host.contains(website) {
                     // check and give allow
                     decisionHandler(.allow)
+                    wasAllow = true
                     return
                 }
             }
         }
         // give cancel
         decisionHandler(.cancel)
+        // added alert if website is blocked
+        if !wasAllow {
+            let ac = UIAlertController(title: "Denied", message: "This website was blocked", preferredStyle: .alert)
+            ac.addAction(UIAlertAction(title: "Ok", style: .destructive))
+
+            present(ac, animated: true)
+        }
     }
     
 
